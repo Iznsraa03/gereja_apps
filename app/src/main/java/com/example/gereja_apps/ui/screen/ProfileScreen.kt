@@ -194,7 +194,7 @@ private fun AuthenticatedProfile(
                         .background(SurfaceContainer)
                 ) {
                     AsyncImage(
-                        model              = "https://placehold.co/200x200/FFFFFF/004D64?text=${name.take(1)}",
+                        model              = "https://placehold.co/200x200/FFFFFF/004D64.png?text=${name.take(1)}",
                         contentDescription = "Avatar",
                         contentScale       = ContentScale.Crop,
                         modifier           = Modifier.fillMaxSize()

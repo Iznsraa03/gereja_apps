@@ -13,6 +13,12 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.*
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
+import androidx.compose.ui.platform.LocalContext
 import com.example.gereja_apps.ui.screen.*
 import com.example.gereja_apps.ui.theme.*
 
@@ -33,6 +39,27 @@ fun ChurchFinderApp() {
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute   = backStackEntry?.destination?.route
     val showBottomBar  = currentRoute in topLevelRoutes
+    
+    val context = LocalContext.current
+    val permissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        // Handle permission results if needed
+    }
+
+    LaunchedEffect(Unit) {
+        val hasFineLocation = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+        val hasCoarseLocation = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
+        
+        if (!hasFineLocation || !hasCoarseLocation) {
+            permissionLauncher.launch(
+                arrayOf(
+                    Manifest.permission.ACCESS_FINE_LOCATION,
+                    Manifest.permission.ACCESS_COARSE_LOCATION
+                )
+            )
+        }
+    }
 
     Scaffold(
         bottomBar = {
@@ -97,9 +124,28 @@ fun ChurchFinderApp() {
             composable("splash") {
                 SplashScreen(
                     onNavigateToHome = {
-                        navController.navigate("home") {
+                        navController.navigate("login") {
                             popUpTo("splash") { inclusive = true }
                         }
+                    }
+                )
+            }
+            composable("login") {
+                LoginScreen(
+                    onNavigateToHome = {
+                        navController.navigate("home") {
+                            popUpTo("login") { inclusive = true }
+                        }
+                    },
+                    onNavigateToRegister = {
+                        navController.navigate("register")
+                    }
+                )
+            }
+            composable("register") {
+                RegisterScreen(
+                    onNavigateToLogin = {
+                        navController.popBackStack()
                     }
                 )
             }

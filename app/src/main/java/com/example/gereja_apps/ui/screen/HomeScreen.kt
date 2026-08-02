@@ -317,7 +317,7 @@ fun ChurchCard(church: ChurchDto, onClick: () -> Unit) {
         Column {
             Box {
                 AsyncImage(
-                    model          = "https://placehold.co/400x200/004D64/FFFFFF?text=Gereja",
+                    model          = "https://placehold.co/400x200/004D64/FFFFFF.png?text=Gereja",
                     contentDescription = church.name,
                     contentScale   = ContentScale.Crop,
                     modifier       = Modifier

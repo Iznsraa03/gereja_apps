@@ -21,6 +21,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
@@ -80,7 +81,7 @@ private fun DetailContent(
             ) {
                 AsyncImage(
                     model          = church.main_image_path
-                        ?: "https://placehold.co/800x450/004D64/FFFFFF?text=Gereja",
+                        ?: "https://placehold.co/800x450/004D64/FFFFFF.png?text=Gereja",
                     contentDescription = null,
                     contentScale   = ContentScale.Crop,
                     modifier       = Modifier
