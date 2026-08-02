@@ -2,7 +2,8 @@ package com.example.gereja_apps
 
 import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.*
+import androidx.compose.ui.Alignment
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -19,6 +20,10 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.font.FontWeight
+import android.content.Intent
+import android.provider.Settings
 import com.example.gereja_apps.ui.screen.*
 import com.example.gereja_apps.ui.theme.*
 
@@ -41,17 +46,38 @@ fun ChurchFinderApp() {
     val showBottomBar  = currentRoute in topLevelRoutes
     
     val context = LocalContext.current
+    var hasLocationPermission by remember { 
+        mutableStateOf(
+            ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+        ) 
+    }
+    
+    val locationManager = remember { context.getSystemService(android.content.Context.LOCATION_SERVICE) as android.location.LocationManager }
+    var isGpsEnabled by remember { mutableStateOf(locationManager.isProviderEnabled(android.location.LocationManager.GPS_PROVIDER)) }
+
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
-        // Handle permission results if needed
+        hasLocationPermission = permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true || 
+                                permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true
+    }
+
+    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+                hasLocationPermission = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+                isGpsEnabled = locationManager.isProviderEnabled(android.location.LocationManager.GPS_PROVIDER)
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
     }
 
     LaunchedEffect(Unit) {
-        val hasFineLocation = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
-        val hasCoarseLocation = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
-        
-        if (!hasFineLocation || !hasCoarseLocation) {
+        if (!hasLocationPermission) {
             permissionLauncher.launch(
                 arrayOf(
                     Manifest.permission.ACCESS_FINE_LOCATION,
@@ -59,6 +85,58 @@ fun ChurchFinderApp() {
                 )
             )
         }
+    }
+
+    if (!hasLocationPermission || !isGpsEnabled) {
+        Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+            Column(
+                modifier = Modifier.fillMaxSize().padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.LocationOn,
+                    contentDescription = null,
+                    modifier = Modifier.size(72.dp),
+                    tint = Primary
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = "Akses Lokasi Dibutuhkan",
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = Primary,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "Aplikasi ini mewajibkan akses dan fitur GPS aktif untuk menemukan gereja terdekat di sekitar Anda secara real-time.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    textAlign = TextAlign.Center,
+                    color = TextSecondary
+                )
+                Spacer(modifier = Modifier.height(32.dp))
+                
+                Button(
+                    onClick = {
+                        if (!hasLocationPermission) {
+                            permissionLauncher.launch(
+                                arrayOf(
+                                    Manifest.permission.ACCESS_FINE_LOCATION,
+                                    Manifest.permission.ACCESS_COARSE_LOCATION
+                                )
+                            )
+                        } else if (!isGpsEnabled) {
+                            context.startActivity(Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS))
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth().height(48.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Primary)
+                ) {
+                    Text(if (!hasLocationPermission) "Beri Izin Lokasi" else "Aktifkan GPS")
+                }
+            }
+        }
+        return // Block app rendering until location is enabled
     }
 
     Scaffold(

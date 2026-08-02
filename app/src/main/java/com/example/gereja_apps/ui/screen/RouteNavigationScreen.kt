@@ -19,6 +19,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.viewmodel.compose.viewModel
+import android.Manifest
+import android.content.Context
+import android.content.pm.PackageManager
+import android.location.Location
+import android.location.LocationManager
+import androidx.core.content.ContextCompat
+import com.example.gereja_apps.ui.theme.Primary
 
 @SuppressLint("SetJavaScriptEnabled")
 @Composable
@@ -42,17 +49,55 @@ fun RouteNavigationScreen(
     val safeName = church?.name?.replace("\"", "\\\"")?.replace("\n", " ") ?: "Lokasi"
     val safeAddress = church?.address?.replace("\"", "\\\"")?.replace("\n", " ") ?: ""
     
+    val context = androidx.compose.ui.platform.LocalContext.current
+    var userLocation by remember { mutableStateOf<Location?>(null) }
+    
+    LaunchedEffect(Unit) {
+        if (ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+            val locationManager = context.getSystemService(Context.LOCATION_SERVICE) as LocationManager
+            val lastKnown = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER)
+                ?: locationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER)
+            userLocation = lastKnown
+        }
+    }
+    
+    val userLat = userLocation?.latitude ?: 0.0
+    val userLng = userLocation?.longitude ?: 0.0
+    val hasUserLoc = userLocation != null
+    
+    val distanceText = remember(church, userLocation) {
+        if (church != null && userLocation != null) {
+            val dest = Location("dest").apply {
+                latitude = lat
+                longitude = lng
+            }
+            val dist = userLocation!!.distanceTo(dest)
+            if (dist > 1000) {
+                String.format("%.1f km", dist / 1000)
+            } else {
+                "${dist.toInt()} m"
+            }
+        } else if (userLocation == null) {
+            "Lokasi Anda tidak ditemukan"
+        } else {
+            "Menghitung jarak..."
+        }
+    }
+    
     val htmlContent = """
         <!DOCTYPE html>
         <html>
         <head>
             <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
             <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+            <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css" />
             <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+            <script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.js"></script>
             <style>
                 body, html { margin: 0; padding: 0; width: 100%; height: 100%; }
                 #map { width: 100%; height: 100%; }
                 .leaflet-control-attribution { display: none; }
+                .leaflet-routing-container { display: none !important; } /* Hide the turn-by-turn text box */
             </style>
         </head>
         <body>
@@ -66,6 +111,20 @@ fun RouteNavigationScreen(
                 var address = "$safeAddress";
                 var marker = L.marker([$lat, $lng]).addTo(map);
                 marker.bindPopup("<b>" + name + "</b><br>" + address).openPopup();
+                
+                var hasUserLoc = $hasUserLoc;
+                if (hasUserLoc) {
+                    L.Routing.control({
+                        waypoints: [
+                            L.latLng($userLat, $userLng),
+                            L.latLng($lat, $lng)
+                        ],
+                        routeWhileDragging: false,
+                        addWaypoints: false,
+                        show: false,
+                        createMarker: function() { return null; } // Don't add extra markers for waypoints
+                    }).addTo(map);
+                }
             </script>
         </body>
         </html>
@@ -141,6 +200,13 @@ fun RouteNavigationScreen(
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
+                        text = "Jarak: $distanceText",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = Primary,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
                         text = "Peta OpenStreetMap (Leaflet JS)",
                         style = MaterialTheme.typography.bodyMedium,
                         color = Color(0xFF004D64)
@@ -148,7 +214,6 @@ fun RouteNavigationScreen(
                     
                     Spacer(modifier = Modifier.height(24.dp))
                     
-                    val context = androidx.compose.ui.platform.LocalContext.current
                     Button(
                         onClick = { 
                             val uri = android.net.Uri.parse("geo:$lat,$lng?q=$lat,$lng($safeName)")
