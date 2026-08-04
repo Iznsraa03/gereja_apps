@@ -33,17 +33,21 @@ class HomeViewModel : ViewModel() {
     private fun fetchData() {
         viewModelScope.launch {
             _isLoading.value = true
-            
             val cats = repo.getCategories().getOrDefault(emptyList())
             val arts = repo.getArticles().getOrDefault(emptyList())
-            
-            // ponytail: Hardcode Makassar coords for nearby (since no location permission yet)
-            val churches = repo.getNearbyChurches(-5.1345, 119.4182).getOrDefault(emptyList())
-            
             _categories.value = cats
             _articles.value = arts
+            // ponytail: initial fallback fetch removed, LaunchedEffect handles it
+            _isLoading.value = false
+        }
+    }
+
+    // ponytail: Dynamic location & category fetcher
+    fun fetchNearbyChurches(lat: Double, lng: Double, categoryId: Int? = null) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            val churches = repo.getNearbyChurches(lat, lng, categoryId = categoryId).getOrDefault(emptyList())
             _nearbyChurches.value = churches
-            
             _isLoading.value = false
         }
     }

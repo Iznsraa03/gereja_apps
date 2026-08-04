@@ -38,14 +38,31 @@ fun ExploreScreen(
     viewModel: ExploreViewModel = viewModel(),
     onChurchClick: (String) -> Unit
 ) {
-    val churches  by viewModel.churches.collectAsState()
-    val isLoading by viewModel.isLoading.collectAsState()
+    val churches   by viewModel.churches.collectAsState()
+    val categories by viewModel.categories.collectAsState()
+    val isLoading  by viewModel.isLoading.collectAsState()
 
     var searchQuery      by remember { mutableStateOf("") }
     var selectedCategory by remember { mutableStateOf<String?>(null) }
+    var selectedCategoryId by remember { mutableStateOf<Int?>(null) }
 
-    // ponytail: static filter labels — real filtering wired through VM later
-    val filters = listOf("Semua", "Toraja", "Pentakosta", "Katolik", "Advent", "Kibaid")
+    val context = androidx.compose.ui.platform.LocalContext.current
+    var userLocation by remember { mutableStateOf<android.location.Location?>(null) }
+
+    DisposableEffect(context) {
+        val locationManager = context.getSystemService(android.content.Context.LOCATION_SERVICE) as android.location.LocationManager
+        if (androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.ACCESS_FINE_LOCATION) == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            userLocation = locationManager.getLastKnownLocation(android.location.LocationManager.GPS_PROVIDER)
+                ?: locationManager.getLastKnownLocation(android.location.LocationManager.NETWORK_PROVIDER)
+        }
+        onDispose { }
+    }
+
+    LaunchedEffect(searchQuery, selectedCategoryId, userLocation) {
+        val lat = userLocation?.latitude ?: -5.147665
+        val lng = userLocation?.longitude ?: 119.432731
+        viewModel.searchNearbyChurches(lat, lng, searchQuery.takeIf { it.isNotBlank() }, selectedCategoryId)
+    }
 
     Column(
         modifier = Modifier
@@ -65,31 +82,39 @@ fun ExploreScreen(
                     modifier = Modifier.padding(horizontal = 16.dp)
                 )
                 Spacer(Modifier.height(10.dp))
-                LazyRow(
-                    contentPadding        = PaddingValues(horizontal = 16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    items(filters) { label ->
-                        val active = label == (selectedCategory ?: "Semua")
-                        val bg by animateColorAsState(
-                            if (active) Primary else SurfaceVariant, tween(200), label = "exCat"
-                        )
-                        val tc by animateColorAsState(
-                            if (active) OnPrimary else TextPrimary, tween(200), label = "exCatT"
-                        )
-                        Surface(
-                            shape    = CircleShape,
-                            color    = bg,
-                            modifier = Modifier.clickable {
-                                selectedCategory = if (label == "Semua") null else label
-                            }
-                        ) {
-                            Text(
-                                label,
-                                style    = MaterialTheme.typography.labelLarge,
-                                color    = tc,
-                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
+                if (categories.isNotEmpty()) {
+                    LazyRow(
+                        contentPadding        = PaddingValues(horizontal = 16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        items(categories) { cat ->
+                            val active = cat.slug == selectedCategory
+                            val bg by animateColorAsState(
+                                if (active) Primary else SurfaceVariant, tween(200), label = "exCat"
                             )
+                            val tc by animateColorAsState(
+                                if (active) OnPrimary else TextPrimary, tween(200), label = "exCatT"
+                            )
+                            Surface(
+                                shape    = CircleShape,
+                                color    = bg,
+                                modifier = Modifier.clickable {
+                                    if (active) {
+                                        selectedCategory = null
+                                        selectedCategoryId = null
+                                    } else {
+                                        selectedCategory = cat.slug
+                                        selectedCategoryId = cat.id
+                                    }
+                                }
+                            ) {
+                                Text(
+                                    cat.name,
+                                    style    = MaterialTheme.typography.labelLarge,
+                                    color    = tc,
+                                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
+                                )
+                            }
                         }
                     }
                 }
@@ -174,7 +199,7 @@ fun ExploreChurchCard(church: ChurchDto, onClick: () -> Unit) {
         Column {
             Box {
                 AsyncImage(
-                    model          = "https://placehold.co/800x350/004D64/FFFFFF.png?text=Gereja",
+                    model          = church.imageUrl ?: "https://placehold.co/800x350/004D64/FFFFFF.png?text=Gereja",
                     contentDescription = church.name,
                     contentScale   = ContentScale.Crop,
                     modifier       = Modifier
@@ -196,15 +221,7 @@ fun ExploreChurchCard(church: ChurchDto, onClick: () -> Unit) {
                         )
                     }
                 }
-                // Favorite
-                Icon(
-                    Icons.Default.FavoriteBorder, "Favorit",
-                    tint     = Color.White,
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(10.dp)
-                        .size(22.dp)
-                )
+                // ponytail: Favorite icon removed (YAGNI)
             }
 
             Column(modifier = Modifier.padding(16.dp)) {
@@ -229,33 +246,15 @@ fun ExploreChurchCard(church: ChurchDto, onClick: () -> Unit) {
                         tint = TextSecondary, modifier = Modifier.size(15.dp))
                     Spacer(Modifier.width(4.dp))
                     Text(
-                        "${church.address}, ${church.city}",
+                        church.address ?: "", // ponytail: city removed
                         style    = MaterialTheme.typography.bodyMedium,
                         color    = TextSecondary,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
                 }
-                // Verification badge
-                if (church.verification_status == "verified") {
-                    Spacer(Modifier.height(8.dp))
-                    Surface(
-                        color  = SuccessGreen.copy(alpha = 0.1f),
-                        shape  = CircleShape
-                    ) {
-                        Row(
-                            modifier          = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(Icons.Default.CheckCircle, null,
-                                tint = SuccessGreen, modifier = Modifier.size(13.dp))
-                            Spacer(Modifier.width(4.dp))
-                            Text("Terverifikasi",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = SuccessGreen)
-                        }
-                    }
-                }
+                // ponytail: Verification badge removed, verification_status not in API
+
             }
         }
     }

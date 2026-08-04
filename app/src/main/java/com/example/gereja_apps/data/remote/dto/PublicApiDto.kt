@@ -25,14 +25,16 @@ data class ChurchDto(
     val id: Int,
     val name: String,
     val slug: String,
-    val address: String,
-    val city: String,
-    val latitude: String?,
-    val longitude: String?,
+    val address: String? = null, // ponytail: nullable for nearby response
+    val latitude: String? = null,
+    val longitude: String? = null,
     val distance: Double? = null,
-    val verification_status: String?,
-    val category: CategoryDto?
-)
+    val main_image_path: String? = null, // ponytail: added image path
+    val category: CategoryDto? = null
+) {
+    val imageUrl: String?
+        get() = main_image_path?.let { if (it.startsWith("http")) it else "${com.example.gereja_apps.data.remote.NetworkClient.STORAGE_BASE_URL}$it" }
+}
 
 @JsonClass(generateAdapter = true)
 data class WorshipScheduleDto(
@@ -68,4 +70,7 @@ data class ChurchDetailDto(
     val category: CategoryDto?,
     val schedules: List<WorshipScheduleDto>? = emptyList(),
     val facilities: List<FacilityDto>? = emptyList()
-)
+) {
+    val imageUrl: String?
+        get() = main_image_path?.let { if (it.startsWith("http")) it else "${com.example.gereja_apps.data.remote.NetworkClient.STORAGE_BASE_URL}$it" }
+}

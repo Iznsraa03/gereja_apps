@@ -42,6 +42,13 @@ fun RouteNavigationScreen(
         }
     }
     
+    if (church?.slug != churchId) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            CircularProgressIndicator(color = Primary)
+        }
+        return
+    }
+    
     // Default location (Makassar) if not loaded yet
     val lat = church?.latitude?.toDoubleOrNull() ?: -5.147665
     val lng = church?.longitude?.toDoubleOrNull() ?: 119.432731
@@ -52,12 +59,42 @@ fun RouteNavigationScreen(
     val context = androidx.compose.ui.platform.LocalContext.current
     var userLocation by remember { mutableStateOf<Location?>(null) }
     
-    LaunchedEffect(Unit) {
+    DisposableEffect(context) {
+        val locationManager = context.getSystemService(Context.LOCATION_SERVICE) as LocationManager
+        var listener: android.location.LocationListener? = null
+        
         if (ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
-            val locationManager = context.getSystemService(Context.LOCATION_SERVICE) as LocationManager
             val lastKnown = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER)
                 ?: locationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER)
             userLocation = lastKnown
+            
+            listener = object : android.location.LocationListener {
+                override fun onLocationChanged(location: Location) {
+                    userLocation = location
+                }
+                override fun onStatusChanged(provider: String?, status: Int, extras: android.os.Bundle?) {}
+                override fun onProviderEnabled(provider: String) {}
+                override fun onProviderDisabled(provider: String) {}
+            }
+            
+            try {
+                locationManager.requestLocationUpdates(
+                    LocationManager.GPS_PROVIDER,
+                    5000L,
+                    5f,
+                    listener
+                )
+                locationManager.requestLocationUpdates(
+                    LocationManager.NETWORK_PROVIDER,
+                    5000L,
+                    5f,
+                    listener
+                )
+            } catch (e: Exception) {}
+        }
+        
+        onDispose {
+            listener?.let { locationManager.removeUpdates(it) }
         }
     }
     
@@ -112,18 +149,33 @@ fun RouteNavigationScreen(
                 var marker = L.marker([$lat, $lng]).addTo(map);
                 marker.bindPopup("<b>" + name + "</b><br>" + address).openPopup();
                 
-                var hasUserLoc = $hasUserLoc;
-                if (hasUserLoc) {
-                    L.Routing.control({
-                        waypoints: [
-                            L.latLng($userLat, $userLng),
+                var routingControl = null;
+                
+                function updateRoute(uLat, uLng) {
+                    if (routingControl == null) {
+                        routingControl = L.Routing.control({
+                            waypoints: [
+                                L.latLng(uLat, uLng),
+                                L.latLng($lat, $lng)
+                            ],
+                            routeWhileDragging: false,
+                            addWaypoints: false,
+                            show: false,
+                            fitSelectedRoutes: false,
+                            createMarker: function() { return null; }
+                        }).addTo(map);
+                    } else {
+                        routingControl.setWaypoints([
+                            L.latLng(uLat, uLng),
                             L.latLng($lat, $lng)
-                        ],
-                        routeWhileDragging: false,
-                        addWaypoints: false,
-                        show: false,
-                        createMarker: function() { return null; } // Don't add extra markers for waypoints
-                    }).addTo(map);
+                        ]);
+                    }
+                }
+                
+                if (typeof AndroidApp !== 'undefined') {
+                    if (AndroidApp.hasLoc()) {
+                        updateRoute(AndroidApp.getLat(), AndroidApp.getLng());
+                    }
                 }
             </script>
         </body>
@@ -144,16 +196,30 @@ fun RouteNavigationScreen(
                     webViewClient = WebViewClient()
                     webChromeClient = WebChromeClient()
                     
+                    addJavascriptInterface(object {
+                        @android.webkit.JavascriptInterface
+                        fun getLat(): Double = userLocation?.latitude ?: 0.0
+                        @android.webkit.JavascriptInterface
+                        fun getLng(): Double = userLocation?.longitude ?: 0.0
+                        @android.webkit.JavascriptInterface
+                        fun hasLoc(): Boolean = userLocation != null
+                    }, "AndroidApp")
+                    
                     if (church != null) {
                         tag = church?.slug
-                        loadDataWithBaseURL(null, htmlContent, "text/html", "UTF-8", "")
+                        loadDataWithBaseURL("https://gereja-apps.local", htmlContent, "text/html", "UTF-8", null)
                     }
                 }
             },
             update = { webView ->
-                if (church != null && webView.tag != church?.slug) {
-                    webView.tag = church?.slug
-                    webView.loadDataWithBaseURL(null, htmlContent, "text/html", "UTF-8", "")
+                val currentChurch = church
+                if (currentChurch != null) {
+                    if (webView.tag != currentChurch.slug) {
+                        webView.tag = currentChurch.slug
+                        webView.loadDataWithBaseURL("https://gereja-apps.local", htmlContent, "text/html", "UTF-8", null)
+                    } else if (hasUserLoc) {
+                        webView.evaluateJavascript("if(typeof updateRoute === 'function') { updateRoute($userLat, $userLng); }", null)
+                    }
                 }
             }
         )
@@ -211,26 +277,6 @@ fun RouteNavigationScreen(
                         style = MaterialTheme.typography.bodyMedium,
                         color = Color(0xFF004D64)
                     )
-                    
-                    Spacer(modifier = Modifier.height(24.dp))
-                    
-                    Button(
-                        onClick = { 
-                            val uri = android.net.Uri.parse("geo:$lat,$lng?q=$lat,$lng($safeName)")
-                            val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, uri)
-                            try {
-                                context.startActivity(intent)
-                            } catch (e: Exception) {
-                                // Ignore or fallback
-                            }
-                        },
-                        modifier = Modifier.fillMaxWidth().height(48.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF004D64))
-                    ) {
-                        Icon(Icons.Default.Directions, contentDescription = null)
-                        Spacer(Modifier.width(8.dp))
-                        Text("Buka di Aplikasi Maps")
-                    }
                 }
             }
         }

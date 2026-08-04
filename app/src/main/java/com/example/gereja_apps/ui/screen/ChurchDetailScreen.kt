@@ -58,7 +58,6 @@ private fun DetailContent(
     onBack: () -> Unit,
     onRoute: (String) -> Unit
 ) {
-    var isFavorite by remember { mutableStateOf(false) }
     val scrollState = rememberScrollState()
 
     // Parallax: hero shrinks as user scrolls
@@ -80,9 +79,9 @@ private fun DetailContent(
                     .height(heroHeight)
             ) {
                 AsyncImage(
-                    model          = church.main_image_path
+                    model          = church.imageUrl
                         ?: "https://placehold.co/800x450/004D64/FFFFFF.png?text=Gereja",
-                    contentDescription = null,
+                    contentDescription = church.name,
                     contentScale   = ContentScale.Crop,
                     modifier       = Modifier
                         .fillMaxSize()
@@ -108,15 +107,7 @@ private fun DetailContent(
                 ) {
                     Icon(Icons.Default.ArrowBack, "Kembali", tint = Color.White)
                 }
-                // Favorite button — top right
-                AnimatedFavoriteButton(
-                    isFavorite = isFavorite,
-                    onClick    = { isFavorite = !isFavorite },
-                    modifier   = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(12.dp)
-                        .background(Color.Black.copy(alpha = 0.35f), CircleShape)
-                )
+                // ponytail: Removed favorite button because user auth is gone (YAGNI)
             }
 
             // ── Church Info Card ───────────────────────────────
@@ -128,24 +119,7 @@ private fun DetailContent(
                 Column(modifier = Modifier.padding(20.dp)) {
                     // Badges row
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        if (church.verification_status == "verified") {
-                            Surface(
-                                color = SuccessGreen.copy(alpha = 0.1f),
-                                shape = CircleShape
-                            ) {
-                                Row(
-                                    modifier          = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Icon(Icons.Default.CheckCircle, null,
-                                        tint = SuccessGreen, modifier = Modifier.size(13.dp))
-                                    Spacer(Modifier.width(4.dp))
-                                    Text("Terverifikasi",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = SuccessGreen)
-                                }
-                            }
-                        }
+                        // ponytail: verification_status removed as it's not in Api_Docs.md
                         church.category?.let { cat ->
                             Surface(
                                 color = SurfaceVariant,
@@ -174,7 +148,7 @@ private fun DetailContent(
                             tint = TextSecondary, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(6.dp))
                         Text(
-                            "${church.address}, ${church.city}",
+                            church.address, // ponytail: city removed as it's not in Api_Docs.md
                             style = MaterialTheme.typography.bodyMedium,
                             color = TextSecondary
                         )
@@ -187,31 +161,7 @@ private fun DetailContent(
                             color = TextSecondary)
                     }
 
-                    // ── Action buttons ─────────────────────────
-                    Spacer(Modifier.height(20.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        church.phone?.let { phone ->
-                            OutlinedButton(
-                                onClick = { /* dial intent */ },
-                                modifier = Modifier.weight(1f),
-                                border   = ButtonDefaults.outlinedButtonBorder.copy(
-                                    width = 1.5.dp
-                                )
-                            ) {
-                                Icon(Icons.Default.Call, null, Modifier.size(16.dp))
-                                Spacer(Modifier.width(6.dp))
-                                Text("Telepon")
-                            }
-                        }
-                        OutlinedButton(
-                            onClick  = { /* share */ },
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Icon(Icons.Default.Share, null, Modifier.size(16.dp))
-                            Spacer(Modifier.width(6.dp))
-                            Text("Bagikan")
-                        }
-                    }
+                    // ponytail: Action buttons (Call/Share) removed as phone is not in API docs and sharing is YAGNI
 
                     // ── Jadwal Ibadah ──────────────────────────
                     if (!church.schedules.isNullOrEmpty()) {
@@ -253,27 +203,7 @@ private fun DetailContent(
                         }
                     }
 
-                    // ── Kontak ─────────────────────────────────
-                    if (church.phone != null || church.website_url != null) {
-                        Spacer(Modifier.height(20.dp))
-                        DetailSectionTitle("Kontak")
-                        Spacer(Modifier.height(12.dp))
-                        Surface(
-                            color    = SurfaceVariant,
-                            shape    = MaterialTheme.shapes.large,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Column(modifier = Modifier.padding(16.dp)) {
-                                church.phone?.let {
-                                    ContactRow(Icons.Default.Call, it)
-                                }
-                                church.website_url?.let {
-                                    if (church.phone != null) Spacer(Modifier.height(14.dp))
-                                    ContactRow(Icons.Default.Public, it)
-                                }
-                            }
-                        }
-                    }
+                    // ponytail: Contact section removed as phone and website_url are not in API docs
 
                     Spacer(Modifier.height(96.dp)) // room for sticky button
                 }
@@ -293,40 +223,12 @@ private fun DetailContent(
         ) {
             Icon(Icons.Default.Directions, null)
             Spacer(Modifier.width(10.dp))
-            Text("Buka Rute di Google Maps", style = MaterialTheme.typography.labelLarge)
+            Text("Buka Rute Peta", style = MaterialTheme.typography.labelLarge) // ponytail: removed gmaps mention
         }
     }
 }
 
-// ── Animated heart button ───────────────────────────────────
-
-@Composable
-private fun AnimatedFavoriteButton(
-    isFavorite: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val scale by animateFloatAsState(
-        targetValue    = if (isFavorite) 1.25f else 1f,
-        animationSpec  = spring(Spring.DampingRatioHighBouncy, Spring.StiffnessMedium),
-        label          = "heartScale",
-        finishedListener = { /* scale back */ }
-    )
-    val tintColor by animateColorAsState(
-        targetValue   = if (isFavorite) FavoriteRed else Color.White,
-        animationSpec = tween(200),
-        label         = "heartColor"
-    )
-
-    IconButton(onClick = onClick, modifier = modifier) {
-        Icon(
-            imageVector    = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-            contentDescription = "Favorit",
-            tint           = tintColor,
-            modifier       = Modifier.scale(scale)
-        )
-    }
-}
+// ponytail: AnimatedFavoriteButton removed completely
 
 // ── Small helpers ───────────────────────────────────────────
 
@@ -337,67 +239,31 @@ private fun DetailSectionTitle(text: String) {
 
 @Composable
 private fun ScheduleItem(schedule: WorshipScheduleDto) {
-    var expanded by remember { mutableStateOf(false) }
+    // ponytail: simplified ScheduleItem, removed expansion and preacher_name as it's not in API docs
     Surface(
         color     = SurfaceVariant,
         shape     = MaterialTheme.shapes.large,
-        modifier  = Modifier
-            .fillMaxWidth()
-            .clickable { expanded = !expanded }
+        modifier  = Modifier.fillMaxWidth()
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(
-                modifier              = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment     = Alignment.CenterVertically
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(schedule.title, fontWeight = FontWeight.SemiBold)
-                    Spacer(Modifier.height(3.dp))
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.AccessTime, null,
-                            tint = TextSecondary, modifier = Modifier.size(13.dp))
-                        Spacer(Modifier.width(4.dp))
-                        Text(
-                            "Hari ${schedule.day_of_week} · ${schedule.start_time}",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = TextSecondary
-                        )
-                    }
-                }
-                Icon(
-                    imageVector    = if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
-                    contentDescription = null,
-                    tint           = TextSecondary
-                )
-            }
-            AnimatedVisibility(visible = expanded) {
-                Column(modifier = Modifier.padding(top = 12.dp)) {
-                    schedule.preacher_name?.let { p ->
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Person, null,
-                                tint = TextSecondary, modifier = Modifier.size(14.dp))
-                            Spacer(Modifier.width(6.dp))
-                            Text(p, style = MaterialTheme.typography.bodySmall, color = TextSecondary)
-                        }
-                    }
-                    // ponytail: WorshipScheduleDto has no description field
+        Row(
+            modifier              = Modifier.padding(16.dp).fillMaxWidth(),
+            verticalAlignment     = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(schedule.title, fontWeight = FontWeight.SemiBold)
+                Spacer(Modifier.height(3.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.AccessTime, null,
+                        tint = TextSecondary, modifier = Modifier.size(13.dp))
+                    Spacer(Modifier.width(4.dp))
+                    Text(
+                        schedule.start_time, // ponytail: removed day_of_week
+                        style = MaterialTheme.typography.bodySmall,
+                        color = TextSecondary
+                    )
                 }
             }
         }
-    }
-}
-
-@Composable
-private fun ContactRow(icon: androidx.compose.ui.graphics.vector.ImageVector, text: String) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Surface(color = PrimaryContainer, shape = CircleShape) {
-            Icon(icon, null,
-                tint     = Primary,
-                modifier = Modifier.padding(8.dp).size(18.dp))
-        }
-        Spacer(Modifier.width(12.dp))
-        Text(text, style = MaterialTheme.typography.bodyMedium)
     }
 }
 

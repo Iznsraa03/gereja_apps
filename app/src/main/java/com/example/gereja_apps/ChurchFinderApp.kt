@@ -32,8 +32,7 @@ private data class NavItem(val route: String, val icon: ImageVector, val label: 
 private val navItems = listOf(
     NavItem("home",      Icons.Default.Home,      "Beranda"),
     NavItem("explore",   Icons.Default.Search,    "Jelajahi"),
-    NavItem("favorites", Icons.Default.Favorite,  "Favorit"),
-    NavItem("profile",   Icons.Default.Person,    "Profil"),
+    NavItem("favorites", Icons.Default.Favorite,  "Favorit")
 )
 
 private val topLevelRoutes = navItems.map { it.route }.toSet()
@@ -202,28 +201,9 @@ fun ChurchFinderApp() {
             composable("splash") {
                 SplashScreen(
                     onNavigateToHome = {
-                        navController.navigate("login") {
+                        navController.navigate("home") {
                             popUpTo("splash") { inclusive = true }
                         }
-                    }
-                )
-            }
-            composable("login") {
-                LoginScreen(
-                    onNavigateToHome = {
-                        navController.navigate("home") {
-                            popUpTo("login") { inclusive = true }
-                        }
-                    },
-                    onNavigateToRegister = {
-                        navController.navigate("register")
-                    }
-                )
-            }
-            composable("register") {
-                RegisterScreen(
-                    onNavigateToLogin = {
-                        navController.popBackStack()
                     }
                 )
             }
@@ -246,9 +226,6 @@ fun ChurchFinderApp() {
             }
             composable("favorites") {
                 FavoritesScreen(onChurchClick = { navController.navigate("church_detail/$it") })
-            }
-            composable("profile") {
-                ProfileScreen()
             }
             composable("church_detail/{churchId}") { back ->
                 val id = back.arguments?.getString("churchId") ?: return@composable

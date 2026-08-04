@@ -51,6 +51,25 @@ fun HomeScreen(
 
     var searchQuery     by remember { mutableStateOf("") }
     var selectedCategory by remember { mutableStateOf<String?>(null) }
+    var selectedCategoryId by remember { mutableStateOf<Int?>(null) }
+
+    val context = androidx.compose.ui.platform.LocalContext.current
+    var userLocation by remember { mutableStateOf<android.location.Location?>(null) }
+
+    DisposableEffect(context) {
+        val locationManager = context.getSystemService(android.content.Context.LOCATION_SERVICE) as android.location.LocationManager
+        if (androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.ACCESS_FINE_LOCATION) == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            userLocation = locationManager.getLastKnownLocation(android.location.LocationManager.GPS_PROVIDER)
+                ?: locationManager.getLastKnownLocation(android.location.LocationManager.NETWORK_PROVIDER)
+        }
+        onDispose { }
+    }
+
+    LaunchedEffect(selectedCategoryId, userLocation) {
+        val lat = userLocation?.latitude ?: -5.147665
+        val lng = userLocation?.longitude ?: 119.432731
+        viewModel.fetchNearbyChurches(lat, lng, selectedCategoryId)
+    }
 
     Column(
         modifier = Modifier
@@ -83,7 +102,13 @@ fun HomeScreen(
                         category   = cat,
                         isSelected = cat.slug == selectedCategory,
                         onClick    = {
-                            selectedCategory = if (selectedCategory == cat.slug) null else cat.slug
+                            if (selectedCategory == cat.slug) {
+                                selectedCategory = null
+                                selectedCategoryId = null
+                            } else {
+                                selectedCategory = cat.slug
+                                selectedCategoryId = cat.id
+                            }
                         }
                     )
                 }
@@ -317,7 +342,7 @@ fun ChurchCard(church: ChurchDto, onClick: () -> Unit) {
         Column {
             Box {
                 AsyncImage(
-                    model          = "https://placehold.co/400x200/004D64/FFFFFF.png?text=Gereja",
+                    model          = church.imageUrl ?: "https://placehold.co/400x200/004D64/FFFFFF.png?text=Gereja",
                     contentDescription = church.name,
                     contentScale   = ContentScale.Crop,
                     modifier       = Modifier
@@ -340,16 +365,7 @@ fun ChurchCard(church: ChurchDto, onClick: () -> Unit) {
                         )
                     }
                 }
-                // Favorite icon
-                Icon(
-                    imageVector    = Icons.Default.FavoriteBorder,
-                    contentDescription = "Favorit",
-                    tint           = Color.White,
-                    modifier       = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(10.dp)
-                        .size(22.dp)
-                )
+                // ponytail: Removed favorite icon, no auth no favorites
             }
 
             Column(modifier = Modifier.padding(12.dp)) {
@@ -375,7 +391,7 @@ fun ChurchCard(church: ChurchDto, onClick: () -> Unit) {
                         tint = TextSecondary, modifier = Modifier.size(14.dp))
                     Spacer(Modifier.width(2.dp))
                     Text(
-                        "${church.address}, ${church.city}",
+                        church.address ?: "",
                         style    = MaterialTheme.typography.bodySmall,
                         color    = TextSecondary,
                         maxLines = 1,
