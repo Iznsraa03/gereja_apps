@@ -13,7 +13,7 @@ import java.util.concurrent.TimeUnit
 
 object NetworkClient {
     // Emulator to localhost
-    const val BASE_URL = "http://192.168.1.6:8000/api/v1/"
+    const val BASE_URL = "https://gerejamakassar.my.id/api/v1/"
     val STORAGE_BASE_URL = BASE_URL.replace("api/v1/", "storage/")
     
     private val moshi = Moshi.Builder()
