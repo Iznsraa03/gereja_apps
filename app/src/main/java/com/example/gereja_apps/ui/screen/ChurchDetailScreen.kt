@@ -148,7 +148,7 @@ private fun DetailContent(
                             tint = TextSecondary, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(6.dp))
                         Text(
-                            church.address, // ponytail: city removed as it's not in Api_Docs.md
+                            church.address ?: "Alamat tidak tersedia",
                             style = MaterialTheme.typography.bodyMedium,
                             color = TextSecondary
                         )
@@ -203,6 +203,29 @@ private fun DetailContent(
                         }
                     }
 
+                    // ── Kegiatan ──────────────────────────────
+                    if (!church.activities.isNullOrEmpty()) {
+                        Spacer(Modifier.height(20.dp))
+                        DetailSectionTitle("Kegiatan")
+                        Spacer(Modifier.height(12.dp))
+                        church.activities.forEach { activity ->
+                            Surface(
+                                color = SurfaceVariant,
+                                shape = MaterialTheme.shapes.medium,
+                                modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(16.dp).fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(Icons.Default.Event, null, tint = Primary, modifier = Modifier.size(20.dp))
+                                    Spacer(Modifier.width(12.dp))
+                                    Text(activity.title, style = MaterialTheme.typography.bodyMedium)
+                                }
+                            }
+                        }
+                    }
+
                     // ponytail: Contact section removed as phone and website_url are not in API docs
 
                     Spacer(Modifier.height(96.dp)) // room for sticky button
@@ -212,7 +235,7 @@ private fun DetailContent(
 
         // ── Sticky "Buka Rute" button ──────────────────────────
         Button(
-            onClick  = { onRoute(church.slug) },
+            onClick  = { onRoute(church.slug ?: "") },
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()

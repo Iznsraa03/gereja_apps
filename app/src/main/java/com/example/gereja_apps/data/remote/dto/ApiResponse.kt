@@ -11,9 +11,9 @@ data class ApiResponse<T>(
 
 @JsonClass(generateAdapter = true)
 data class PaginatedData<T>(
-    val current_page: Int,
+    val current_page: Int? = 1,
     val data: List<T>,
-    val per_page: Int,
-    val total: Int,
-    val last_page: Int
+    val per_page: Int? = null,
+    val total: Int? = null,
+    val last_page: Int? = null
 )
