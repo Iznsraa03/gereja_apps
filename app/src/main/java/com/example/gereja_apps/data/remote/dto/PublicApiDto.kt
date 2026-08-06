@@ -16,9 +16,9 @@ data class ArticleDto(
     val id: Int,
     val title: String,
     val slug: String,
-    val excerpt: String?,
-    val thumbnail_path: String?,
-    val published_at: String?
+    val excerpt: String? = null,
+    val thumbnail_path: String? = null,
+    val published_at: String? = null
 )
 
 @JsonClass(generateAdapter = true)
@@ -66,9 +66,9 @@ data class ChurchDetailDto(
     val slug: String? = null,
     @Json(name = "alamat") val address: String? = null,
     @Json(name = "kecamatan") val city: String? = null,
-    val latitude: String?,
-    val longitude: String?,
-    @Json(name = "deskripsi") val description: String?,
+    val latitude: String? = null,
+    val longitude: String? = null,
+    @Json(name = "deskripsi") val description: String? = null,
     val phone: String? = null,
     val website_url: String? = null,
     val gambar: List<String>? = emptyList(),
